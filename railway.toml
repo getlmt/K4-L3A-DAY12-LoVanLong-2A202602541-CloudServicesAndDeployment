@@ -4,13 +4,14 @@
 #     railway variables --set AGENT_API_KEY=...
 #
 # Railway tự gán biến PORT — app phải đọc $PORT, đừng cố định 8000.
+# Không khai báo startCommand: dùng CMD trong Dockerfile (chạy qua `sh -c`
+# nên $PORT được nội suy đúng).
 
 [build]
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
