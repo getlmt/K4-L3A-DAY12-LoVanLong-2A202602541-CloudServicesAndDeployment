@@ -10,17 +10,17 @@
 
 | Mục | Nội dung |
 |-----|----------|
-| Họ và tên | (điền họ tên) |
-| Mã học viên | (điền mã học viên) |
-| Repo | (điền link repo K4-L3A-DAY12-HoVaTen-MSSV-CloudServicesAndDeployment) |
+| Họ và tên | Lò Văn Long |
+| Mã học viên | 2A202602541 |
+| Repo | https://github.com/getlmt/K4-L3A-DAY12-LoVanLong-2A202602541-CloudServicesAndDeployment |
 
 ## Service
 
 | Mục | Nội dung |
 |-----|----------|
-| Public URL | https://TODO-thay-bang-url-that.up.railway.app |
-| Platform | Railway / Render / Cloud Run — (điền platform bạn dùng) |
-| Ngày deploy | (điền ngày) |
+| Public URL | https://agent-production-4f72.up.railway.app |
+| Platform | Railway (build từ `Dockerfile`, cấu hình trong `railway.toml`) |
+| Ngày deploy | 2026-09-28 |
 
 ## Biến Môi Trường Đã Set Trên Cloud
 
@@ -30,7 +30,7 @@ Ghi tên biến và **nguồn giá trị**, không ghi giá trị:
 |------|--------|---------|
 | `PORT` | ✅ | platform tự gán |
 | `AGENT_API_KEY` | ✅ | đặt trong dashboard, không nằm trong repo |
-| `REDIS_URL` | ✅ | (điền: Redis add-on của platform / Upstash / ...) |
+| `REDIS_URL` | ✅ | Redis add-on của Railway, tham chiếu `${{Redis.REDIS_URL}}` (mạng nội bộ `redis.railway.internal`) |
 | `RATE_LIMIT_PER_MINUTE` | ✅ | 10 |
 | `MONTHLY_BUDGET_USD` | ✅ | 10.0 |
 | `LOG_LEVEL` | ✅ | INFO |
@@ -70,11 +70,41 @@ done; echo
 
 ## Kết Quả Chạy Thật
 
-Dán output của các lệnh trên vào đây:
+Chạy ngày 2026-09-28 vào `URL=https://agent-production-4f72.up.railway.app`
+(chỉ giữ dòng status, `Content-Type` và body; giá trị API key không in ra).
 
 ```
-(điền output)
+$ curl -i $URL/health
+HTTP/1.1 200 OK
+Content-Type: application/json
+{"status":"ok","service":"day12-agent","version":"1.0.0"}
+
+$ curl -i $URL/ready
+HTTP/1.1 200 OK
+Content-Type: application/json
+{"status":"ready","redis":true}
+
+$ curl -i -X POST $URL/ask   # không có API key
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+{"detail":"invalid or missing API key"}
+
+$ for i in $(seq 1 15); do curl ... /ask; done   # rate limit 10 request/phút
+200 200 200 200 200 200 200 200 200 200 429 429 429 429 429
+
+$ curl -i -X POST $URL/ask   # có X-API-Key, X-User-Id: sv-test (chạy lại sau khi hết cửa sổ 60s)
+HTTP/1.1 200 OK
+Content-Type: application/json
+{"answer":"Câu hỏi hay. Deploy là gì thường được giải quyết bằng cách chuẩn hóa môi trường chạy: cùng một image chạy giống nhau ở laptop và trên cloud. (Mình đang nhớ 20 lượt trao đổi trước đó.)","user_id":"sv-test","history_length":20,"cost_usd":9.285e-05,"tokens":{"in":439,"out":45}}
 ```
+
+Ghi chú:
+- Lệnh 4 lần đầu trả `400 There was an error parsing the body` vì curl trên
+  Windows (Git Bash) không gửi đúng UTF-8 cho câu hỏi tiếng Việt trong `-d`.
+  Chạy lại bằng `--data-binary @body.json` (file UTF-8) thì trả `200`.
+- `history_length: 20` vì 10 request thành công trong vòng lặp rate limit đã ghi
+  20 message (user + assistant) vào Redis — lịch sử được cắt ở
+  `HISTORY_MAX_MESSAGES = 20`, đúng thiết kế CP4.
 
 ## Ảnh Chụp Màn Hình
 
@@ -83,19 +113,4 @@ Dán output của các lệnh trên vào đây:
 - `screenshots/dashboard.png` — trang quản lý service trên platform
 - `screenshots/health.png` — kết quả gọi `/health` từ trình duyệt hoặc curl
 
----
-
-## Nếu Dùng Phương Án Dự Phòng
-
-Không đăng ký được tài khoản cloud? Vẫn nộp được bài, nhưng CP5 tối đa 60% điểm:
-
-1. Đặt `LOCAL_FALLBACK=true` trong `.env`
-2. Chạy `docker compose up -d` rồi kiểm tra `docker compose ps`
-3. Chụp màn hình vào `screenshots/`
-4. Chạy `pytest tests/test_cp5.py -v` — bộ test sẽ tự chuyển sang kiểm tra
-   `http://localhost:8000`
-5. Ghi rõ lý do không deploy được vào phần dưới đây:
-
-```
-(điền lý do nếu dùng phương án dự phòng, ngược lại xóa mục này)
-```
+Không dùng phương án dự phòng (`LOCAL_FALLBACK=false`) — service chạy thật trên Railway.
